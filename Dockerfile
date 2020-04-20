@@ -33,9 +33,9 @@ RUN git clone https://github.com/opencv/opencv.git
 RUN git clone https://github.com/opencv/opencv_contrib.git
 
 WORKDIR /home/flode/opencv_build/opencv_contrib
-RUN git checkout 3.4
+RUN git checkout master
 WORKDIR /home/flode/opencv_build/opencv
-RUN git checkout 3.4
+RUN git checkout master
 RUN mkdir -p build
 WORKDIR /home/flode/opencv_build/opencv/build
 
@@ -46,7 +46,7 @@ RUN cmake -D CMAKE_BUILD_TYPE=RELEASE \
     -D OPENCV_GENERATE_PKGCONFIG=ON \
     -D OPENCV_ENABLE_NONFREE=ON \
     -D WITH_CUDA=ON \
-    -D CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-10.2 \
+    -D CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda \
     -D OPENCV_EXTRA_MODULES_PATH=/home/flode/opencv_build/opencv_contrib/modules \
     -D BUILD_EXAMPLES=ON ..
 RUN make -j6
@@ -54,13 +54,20 @@ RUN make install
 RUN pkg-config --modversion opencv4
 
 
-RUN git clone https://github.com/pjreddie/darknet.git /home/flode/darknet
+RUN git clone https://github.com/AlexeyAB/darknet.git /home/flode/darknet
 WORKDIR /home/flode/darknet
 RUN sed -i 's/OPENCV=0/OPENCV=1/' Makefile
 RUN sed -i 's/GPU=0/GPU=1/' Makefile
 RUN sed -i 's/CUDNN=0/CUDNN=1/' Makefile
-RUN /usr/local/cuda/bin/nvcc --version
-#RUN make
+RUN sed -i 's!NVCC=nvcc!NVCC=/usr/local/cuda/bin/nvcc!' Makefile
+RUN sed -i '140aLDFLAGS+= -L/usr/lib/x86_64-linux-gnu' Makefile
+RUN sed -i '140aLDFLAGS+= -L/usr/local/cuda/lib64/stubs' Makefile
+
+#see https://stackoverflow.com/questions/39287744/ubuntu-16-04-nvidia-toolkit-8-0-rc-darknet-compilation-error-expected
+#and https://github.com/pjreddie/darknet/issues/1923
+
+#RUN /usr/local/cuda/bin/nvcc --version
+RUN make
 
 COPY candy.data /home/flode/darknet/data
 	
