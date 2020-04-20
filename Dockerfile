@@ -1,6 +1,8 @@
 FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
 
-ARG DEBIAN_FRONTEND=noninteractive
+ARG user=flode
+
+ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update
 RUN apt-get install -y sudo
 RUN apt-get install -y git
@@ -27,17 +29,19 @@ RUN apt-get install -y libtbb2
 RUN apt-get install -y libtbb-dev
 RUN apt-get install -y libdc1394-22-dev
 
-RUN mkdir -p /home/flode/opencv_build
-WORKDIR /home/flode/opencv_build
+RUN mkdir -p /home/$user/opencv_build
+WORKDIR /home/$user/opencv_build
 RUN git clone https://github.com/opencv/opencv.git
 RUN git clone https://github.com/opencv/opencv_contrib.git
 
-WORKDIR /home/flode/opencv_build/opencv_contrib
+WORKDIR /home/$user/opencv_build/opencv_contrib
+#change 'master' for your preferred opencv_contrib-version, must be same as opencv-version
 RUN git checkout master
-WORKDIR /home/flode/opencv_build/opencv
+WORKDIR /home/$user/opencv_build/opencv
+#change 'master' for your preferred opencv-version, must be same as opencv_contrib-version
 RUN git checkout master
 RUN mkdir -p build
-WORKDIR /home/flode/opencv_build/opencv/build
+WORKDIR /home/$user/opencv_build/opencv/build
 
 RUN cmake -D CMAKE_BUILD_TYPE=RELEASE \
     -D CMAKE_INSTALL_PREFIX=/usr/local \
@@ -47,15 +51,19 @@ RUN cmake -D CMAKE_BUILD_TYPE=RELEASE \
     -D OPENCV_ENABLE_NONFREE=ON \
     -D WITH_CUDA=ON \
     -D CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda \
-    -D OPENCV_EXTRA_MODULES_PATH=/home/flode/opencv_build/opencv_contrib/modules \
+    -D OPENCV_EXTRA_MODULES_PATH=/home/$user/opencv_build/opencv_contrib/modules \
     -D BUILD_EXAMPLES=ON ..
+
+#set -jX the number of CPU-cores in your machine
 RUN make -j6
 RUN make install
+
+#edit this if you use opencv < 4
 RUN pkg-config --modversion opencv4
 
 
-RUN git clone https://github.com/AlexeyAB/darknet.git /home/flode/darknet
-WORKDIR /home/flode/darknet
+RUN git clone https://github.com/AlexeyAB/darknet.git /home/$user/darknet
+WORKDIR /home/$user/darknet
 RUN sed -i 's/OPENCV=0/OPENCV=1/' Makefile
 RUN sed -i 's/GPU=0/GPU=1/' Makefile
 RUN sed -i 's/CUDNN=0/CUDNN=1/' Makefile
@@ -66,16 +74,10 @@ RUN sed -i '140aLDFLAGS+= -L/usr/local/cuda/lib64/stubs' Makefile
 #see https://stackoverflow.com/questions/39287744/ubuntu-16-04-nvidia-toolkit-8-0-rc-darknet-compilation-error-expected
 #and https://github.com/pjreddie/darknet/issues/1923
 
-#RUN /usr/local/cuda/bin/nvcc --version
 RUN make
 
-COPY candy.data /home/flode/darknet/data
-	
-	#dann im Dockerfile-Verzeichnis neues image bauen
-		#'docker build -t ros:kinetic_custom .'
-	#nach dem bauen altes image loeschen mit 
-		#'docker rmi $(docker images -f "dangling=true" -q)'
-	#evtl. neuer tag des images muss ins bash script!
+#[OPTIONAL] copy your personal yolo data and config into the container
+COPY candy.data /home/$user/darknet/data
 	
 
 
